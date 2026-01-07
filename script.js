@@ -133,13 +133,13 @@ function initSpeechRecognition() {
 function updateMicUI(listening) {
     if (listening) {
         micBtn.classList.add('listening');
-        // Simple label mapping for status
-        let langLabel = '???';
-        if (settings.sourceLang === 'ja-JP') langLabel = 'JP (聞いています)';
-        else if (settings.sourceLang === 'zh-CN') langLabel = 'CN (Listening)';
-        else if (settings.sourceLang === 'en-US') langLabel = 'EN (Listening)';
+        // Dynamic generic label
+        const langCode = settings.sourceLang.split('-')[0].toUpperCase();
+        let statusText = 'Listening';
+        if (langCode === 'ZH') statusText = 'Listening';
+        else if (langCode === 'JA') statusText = '聞いています';
 
-        micStatus.textContent = langLabel;
+        micStatus.textContent = `${langCode} (${statusText})`;
         micBtn.querySelector('.mic-icon').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M320-320v-320h320v320H320Zm-80 80h480v-480H240v480Z"/></svg>'; // Stop icon
     } else {
         micBtn.classList.remove('listening');
@@ -204,10 +204,14 @@ async function translateText(text) {
         try {
             console.log("Requesting Free translation...", text);
             // Construct pair: "source|target"
-            const src = settings.sourceLang.split('-')[0]; // zh, en, ja
-            let tgt = 'ja';
-            if (settings.targetLang === 'English') tgt = 'en';
-            if (settings.targetLang === 'Chinese') tgt = 'zh';
+            const map = {
+                'Japanese': 'ja', 'English': 'en', 'Chinese': 'zh',
+                'Korean': 'ko', 'French': 'fr', 'German': 'de',
+                'Spanish': 'es', 'Italian': 'it', 'Russian': 'ru',
+                'Vietnamese': 'vi', 'Thai': 'th', 'Indonesian': 'id'
+            };
+            const src = settings.sourceLang.split('-')[0];
+            const tgt = map[settings.targetLang] || 'ja';
 
             const pair = `${src}|${tgt}`;
             const encodedText = encodeURIComponent(text);
