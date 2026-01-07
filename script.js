@@ -15,6 +15,7 @@ const translationModeSelect = document.getElementById('translationMode');
 let isRecordingActive = false; // User's intent (ON/OFF)
 let recognition = null;
 let currentInterimCard = null;
+let lastFinalTranscript = ""; // To prevent duplicates
 
 // Settings
 let settings = {
@@ -87,6 +88,12 @@ function initSpeechRecognition() {
         }
 
         if (finalTranscript) {
+            // Prevent duplicates (common issue with Android Chrome / Network lag)
+            if (finalTranscript === lastFinalTranscript) {
+                return;
+            }
+            lastFinalTranscript = finalTranscript;
+
             // Commit final card
             if (currentInterimCard) {
                 currentInterimCard.remove();
