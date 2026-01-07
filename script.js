@@ -10,6 +10,8 @@ const settingsDialog = document.getElementById('settingsDialog');
 const saveSettingsBtn = document.getElementById('saveSettings');
 const apiKeyInput = document.getElementById('apiKey');
 const translationModeSelect = document.getElementById('translationMode');
+const sourceLangSelect = document.getElementById('sourceLang');
+const targetLangSelect = document.getElementById('targetLang');
 
 // State
 let isRecordingActive = false; // User's intent (ON/OFF)
@@ -20,12 +22,16 @@ let lastFinalTranscript = ""; // To prevent duplicates
 // Settings
 let settings = {
     apiKey: localStorage.getItem('yitalk_apikey') || '',
-    mode: localStorage.getItem('yitalk_mode') || 'deepseek'
+    mode: localStorage.getItem('yitalk_mode') || 'deepseek',
+    sourceLang: localStorage.getItem('yitalk_source') || 'zh-CN',
+    targetLang: localStorage.getItem('yitalk_target') || 'Japanese'
 };
 
 // Initialize Settings UI
 apiKeyInput.value = settings.apiKey;
 translationModeSelect.value = settings.mode;
+sourceLangSelect.value = settings.sourceLang;
+targetLangSelect.value = settings.targetLang;
 
 // Speech Recognition Engine
 function initSpeechRecognition() {
@@ -37,7 +43,7 @@ function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const rec = new SpeechRecognition();
 
-    rec.lang = 'zh-CN'; // Chinese (Simplified)
+    rec.lang = settings.sourceLang; // Dynamic
     rec.continuous = true;
     rec.interimResults = true;
 
@@ -117,7 +123,12 @@ function initSpeechRecognition() {
 function updateMicUI(listening) {
     if (listening) {
         micBtn.classList.add('listening');
-        micStatus.textContent = 'LISTENING...';
+        // Simple label mapping for status
+        let statusText = 'LISTENING';
+        if (settings.sourceLang === 'ja-JP') statusText = '聞いています';
+        else if (settings.sourceLang === 'zh-CN') statusText = 'LISTENING';
+
+        micStatus.textContent = statusText;
         micBtn.querySelector('.mic-icon').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M320-320v-320h320v320H320Zm-80 80h480v-480H240v480Z"/></svg>'; // Stop icon
     } else {
         micBtn.classList.remove('listening');
@@ -131,15 +142,18 @@ function createCard(text, isFinal) {
     card.className = 'message-card';
     if (!isFinal) card.style.opacity = '0.7';
 
-    // Generate Pinyin
-    // Use toneType: 'none' for cleaner look or default for tones. Tones are helpful. w default.
-    const pinyinText = pinyin(text, { toneType: 'symbol' }); // e.g. "hǎo"
+    // Generate Pinyin only if source is Chinese (Simplified)
+    let secondLine = '';
+    if (settings.sourceLang === 'zh-CN') {
+        const pinyinText = pinyin(text, { toneType: 'symbol' });
+        secondLine = `<div class="pinyin-text">${pinyinText}</div>`;
+    }
 
     card.innerHTML = `
         <div class="cn-text">${text}</div>
-        <div class="pinyin-text">${pinyinText}</div>
+        ${secondLine}
         <div class="jp-text">
-            ${isFinal ? '<span class="loading-dots">翻訳中...</span>' : '...'}
+            ${isFinal ? '<span class="loading-dots">Wait...</span>' : '...'}
         </div>
     `;
 
@@ -150,7 +164,6 @@ function createCard(text, isFinal) {
         translateText(text).then(translation => {
             const jpDiv = card.querySelector('.jp-text');
             jpDiv.textContent = translation;
-            // Optionally playing TTS here if requested
         });
     }
 
@@ -158,15 +171,17 @@ function createCard(text, isFinal) {
 }
 
 function updateCard(card, text) {
-    const pinyinText = pinyin(text, { toneType: 'symbol' });
     card.querySelector('.cn-text').textContent = text;
-    card.querySelector('.pinyin-text').textContent = pinyinText;
+    if (settings.sourceLang === 'zh-CN') {
+        const pinyinText = pinyin(text, { toneType: 'symbol' });
+        const pDiv = card.querySelector('.pinyin-text');
+        if (pDiv) pDiv.textContent = pinyinText;
+    }
     outputContainer.scrollTop = outputContainer.scrollHeight;
 }
 
 // Translation Logic
 async function translateText(text) {
-    // Mode defaults: if key exists -> deepseek, else -> free (if user hasn't explicitly set manual)
     const mode = settings.mode;
 
     if (mode === 'manual') {
@@ -177,15 +192,21 @@ async function translateText(text) {
     if (mode === 'free') {
         try {
             console.log("Requesting Free translation...", text);
+            // Construct pair: "source|target"
+            const src = settings.sourceLang.split('-')[0]; // zh, en, ja
+            let tgt = 'ja';
+            if (settings.targetLang === 'English') tgt = 'en';
+            if (settings.targetLang === 'Chinese') tgt = 'zh';
+
+            const pair = `${src}|${tgt}`;
             const encodedText = encodeURIComponent(text);
-            const url = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=zh-CN|ja`;
+            const url = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${pair}`;
 
             const response = await fetch(url);
             const data = await response.json();
 
             if (data.responseStatus !== 200) {
                 console.warn("MyMemory Error:", data);
-                // Fallback or error
                 return `Limit/Error: ${data.responseDetails}`;
             }
 
@@ -203,8 +224,11 @@ async function translateText(text) {
 
     try {
         console.log("Requesting translation...", text);
+
+        // Dynamic Prompt based on language settings
+        const prompt = `You are a professional simultaneous interpreter. Translate the following ${settings.sourceLang} text into natural ${settings.targetLang}. Do not add any explanations, only the translation.`;
+
         // DeepSeek API Endpoint
-        // Note: Using /chat/completions directly based on docs, but if fails, might need /v1/chat/completions
         const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: {
@@ -216,32 +240,28 @@ async function translateText(text) {
                 messages: [
                     {
                         "role": "system",
-                        "content": "You are a professional Chinese to Japanese simultaneous interpreter. Translate the input text into natural, spoken Japanese. Do not add any explanations, only the translation."
+                        "content": prompt
                     },
                     {
                         "role": "user",
                         "content": text
                     }
                 ],
-                max_tokens: 200 // Increased slightly
+                max_tokens: 256
             })
         });
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
-            console.error('API Error Response:', response.status, errData);
             return `API Error: ${response.status} ${errData.error?.message || ''}`;
         }
 
         const data = await response.json();
         if (data.error) {
-            console.error('API Data Error:', data.error);
             return `Error: ${data.error.message}`;
         }
 
-        const result = data.choices[0].message.content.trim();
-        console.log("Translation received:", result);
-        return result;
+        return data.choices[0].message.content.trim();
 
     } catch (e) {
         console.error('Translation failed', e);
@@ -280,18 +300,36 @@ settingsBtn.addEventListener('click', () => {
 });
 
 saveSettingsBtn.addEventListener('click', (e) => {
-    // e.preventDefault(); // Usually handled by dialog form method="dialog" but explicit is okay
+    // Save standard settings
     settings.apiKey = apiKeyInput.value.trim();
     settings.mode = translationModeSelect.value;
 
+    // Check if lang changed
+    const newSource = sourceLangSelect.value;
+    const newTarget = targetLangSelect.value;
+    const langChanged = (newSource !== settings.sourceLang);
+
+    settings.sourceLang = newSource;
+    settings.targetLang = newTarget;
+
     localStorage.setItem('yitalk_apikey', settings.apiKey);
     localStorage.setItem('yitalk_mode', settings.mode);
+    localStorage.setItem('yitalk_source', settings.sourceLang);
+    localStorage.setItem('yitalk_target', settings.targetLang);
 
-    // Dialog closes automatically due to form method="dialog" or we can close it
-    // settingsDialog.close(); 
+    // Auto-restart if language changed
+    if (langChanged && recognition) {
+        recognition.abort();
+        recognition = null;
+        if (isRecordingActive) {
+            isRecordingActive = false;
+            updateMicUI(false);
+            alert("言語設定を変更しました。マイクボタンを押して再開してください。\nLanguage settings changed. Please restart mic.");
+        }
+    }
 });
 
-// Prevent dialog from closing if clicking inside (backdrop click closes is optional, but form handles close)
+// Prevent dialog from closing if clicking inside
 settingsDialog.addEventListener('click', (e) => {
     const rect = settingsDialog.getBoundingClientRect();
     if (e.clientY < rect.top || e.clientY > rect.bottom ||
@@ -300,4 +338,3 @@ settingsDialog.addEventListener('click', (e) => {
     }
 });
 settingsDialog.querySelector('form').addEventListener('click', (e) => e.stopPropagation());
-
