@@ -159,15 +159,19 @@ function updateCard(card, text) {
 
 // Translation Logic
 async function translateText(text) {
-    if (settings.mode !== 'deepseek' || !settings.apiKey) {
-        if (!settings.apiKey && settings.mode === 'deepseek') {
-            return "※設定からAPIキーを入力してください (Please set API Key)";
-        }
-        return "---"; // Manual mode
+    // Force 'deepseek' behavior/endpoint even if legacy 'openai' mode is set, unless 'manual'
+    if (settings.mode === 'manual') {
+        return "--- (Manual Mode)";
+    }
+
+    if (!settings.apiKey) {
+        return "※設定からAPIキーを入力してください (Please set API Key)";
     }
 
     try {
-        // DeepSeek API Endpoint (OpenAI Compatible)
+        console.log("Requesting translation...", text);
+        // DeepSeek API Endpoint
+        // Note: Using /chat/completions directly based on docs, but if fails, might need /v1/chat/completions
         const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: {
@@ -186,19 +190,29 @@ async function translateText(text) {
                         "content": text
                     }
                 ],
-                max_tokens: 100
+                max_tokens: 200 // Increased slightly
             })
         });
 
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            console.error('API Error Response:', response.status, errData);
+            return `API Error: ${response.status} ${errData.error?.message || ''}`;
+        }
+
         const data = await response.json();
         if (data.error) {
-            console.error('API Error:', data.error);
+            console.error('API Data Error:', data.error);
             return `Error: ${data.error.message}`;
         }
-        return data.choices[0].message.content.trim();
+
+        const result = data.choices[0].message.content.trim();
+        console.log("Translation received:", result);
+        return result;
+
     } catch (e) {
         console.error('Translation failed', e);
-        return "通信エラー (Connection Error)";
+        return `通信エラー: ${e.message}`;
     }
 }
 
