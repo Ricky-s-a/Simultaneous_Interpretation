@@ -12,6 +12,7 @@ const apiKeyInput = document.getElementById('apiKey');
 const translationModeSelect = document.getElementById('translationMode');
 const sourceLangSelect = document.getElementById('sourceLang');
 const targetLangSelect = document.getElementById('targetLang');
+const swapLangBtn = document.getElementById('swapLangBtn'); // New Button
 
 // State
 let isRecordingActive = false; // User's intent (ON/OFF)
@@ -32,6 +33,21 @@ apiKeyInput.value = settings.apiKey;
 translationModeSelect.value = settings.mode;
 sourceLangSelect.value = settings.sourceLang;
 targetLangSelect.value = settings.targetLang;
+
+// Helper maps for swapping
+const codeToName = {
+    'zh-CN': 'Chinese', 'en-US': 'English', 'ja-JP': 'Japanese',
+    'ko-KR': 'Korean', 'fr-FR': 'French', 'de-DE': 'German',
+    'es-ES': 'Spanish', 'it-IT': 'Italian', 'ru-RU': 'Russian',
+    'vi-VN': 'Vietnamese', 'th-TH': 'Thai', 'id-ID': 'Indonesian'
+};
+
+const nameToCode = {
+    'Chinese': 'zh-CN', 'English': 'en-US', 'Japanese': 'ja-JP',
+    'Korean': 'ko-KR', 'French': 'fr-FR', 'German': 'de-DE',
+    'Spanish': 'es-ES', 'Italian': 'it-IT', 'Russian': 'ru-RU',
+    'Vietnamese': 'vi-VN', 'Thai': 'th-TH', 'Indonesian': 'id-ID'
+};
 
 // Speech Recognition Engine
 function initSpeechRecognition() {
@@ -309,6 +325,50 @@ micBtn.addEventListener('click', () => {
             isRecordingActive = false;
             updateMicUI(false);
         }
+    }
+});
+
+// Swap Language Event
+swapLangBtn.addEventListener('click', () => {
+    // Current settings
+    const currentSource = settings.sourceLang; // e.g. "zh-CN"
+    const currentTarget = settings.targetLang; // e.g. "Japanese"
+
+    // Find counterparts
+    const newSource = nameToCode[currentTarget]; // "Japanese" -> "ja-JP"
+    const newTarget = codeToName[currentSource]; // "zh-CN" -> "Chinese"
+
+    if (!newSource || !newTarget) {
+        alert('この言語の組み合わせはスワップできません。\nCannot swap this language pair.');
+        return;
+    }
+
+    // Apply new settings
+    settings.sourceLang = newSource;
+    settings.targetLang = newTarget;
+
+    // Update UI selects to match (so settings dialog is correct)
+    sourceLangSelect.value = settings.sourceLang;
+    targetLangSelect.value = settings.targetLang;
+
+    // Save
+    localStorage.setItem('yitalk_source', settings.sourceLang);
+    localStorage.setItem('yitalk_target', settings.targetLang);
+
+    // Toast/Feedback
+    const srcCode = settings.sourceLang.split('-')[0].toUpperCase();
+    const tgtCode = nameToCode[settings.targetLang].split('-')[0].toUpperCase();
+    alert(`Swapped: ${srcCode} ↔ ${tgtCode}`);
+
+    // Restart Mic if active
+    if (isRecordingActive) {
+        if (recognition) {
+            recognition.abort();
+            recognition = null;
+        }
+        isRecordingActive = false;
+        updateMicUI(false);
+        // User can manually restart
     }
 });
 
