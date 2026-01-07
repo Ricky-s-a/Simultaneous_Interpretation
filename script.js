@@ -159,13 +159,39 @@ function updateCard(card, text) {
 
 // Translation Logic
 async function translateText(text) {
-    // Force 'deepseek' behavior/endpoint even if legacy 'openai' mode is set, unless 'manual'
-    if (settings.mode === 'manual') {
+    // Mode defaults: if key exists -> deepseek, else -> free (if user hasn't explicitly set manual)
+    const mode = settings.mode;
+
+    if (mode === 'manual') {
         return "--- (Manual Mode)";
     }
 
+    // Free Mode (MyMemory)
+    if (mode === 'free') {
+        try {
+            console.log("Requesting Free translation...", text);
+            const encodedText = encodeURIComponent(text);
+            const url = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=zh-CN|ja`;
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.responseStatus !== 200) {
+                console.warn("MyMemory Error:", data);
+                // Fallback or error
+                return `Limit/Error: ${data.responseDetails}`;
+            }
+
+            return data.responseData.translatedText;
+        } catch (e) {
+            console.error(e);
+            return "Translation Error";
+        }
+    }
+
+    // DeepSeek Mode
     if (!settings.apiKey) {
-        return "※設定からAPIキーを入力してください (Please set API Key)";
+        return "※設定からAPIキーを入力するか、Freeモードを選択してください";
     }
 
     try {
