@@ -12,7 +12,7 @@ const apiKeyInput = document.getElementById('apiKey');
 const translationModeSelect = document.getElementById('translationMode');
 
 // State
-let isListening = false;
+let isRecordingActive = false; // User's intent (ON/OFF)
 let recognition = null;
 let currentInterimCard = null;
 
@@ -41,24 +41,37 @@ function initSpeechRecognition() {
     rec.interimResults = true;
 
     rec.onstart = () => {
-        isListening = true;
         updateMicUI(true);
     };
 
     rec.onend = () => {
-        isListening = false;
-        updateMicUI(false);
-        // Auto-restart if it stopped unexpectedly but was supposed to be running (common mobile behavior)
-        // However, for explicit stop, we handle it in toggleListening.
+        // If user still wants it active, restart it immediately
+        if (isRecordingActive) {
+            console.log('Auto-restarting speech recognition...');
+            try {
+                rec.start();
+            } catch (e) {
+                console.warn('Restart failed, retrying in 1s...', e);
+                setTimeout(() => {
+                    if (isRecordingActive) rec.start();
+                }, 1000);
+            }
+        } else {
+            updateMicUI(false);
+        }
     };
 
     rec.onerror = (event) => {
         console.error('Speech recognition error', event.error);
         if (event.error === 'not-allowed') {
             alert('マイクの使用が許可されていません。\nPlease allow microphone access.');
+            isRecordingActive = false; // User explicitly stopped or denied
+            updateMicUI(false);
         }
-        isListening = false;
-        updateMicUI(false);
+        // Improve resilience: Ignore no-speech or network hiccups and let onend handle restart
+        if (event.error === 'no-speech') {
+            // Just ignore, it will trigger onend and we restart
+        }
     };
 
     rec.onresult = (event) => {
@@ -195,10 +208,22 @@ micBtn.addEventListener('click', () => {
         recognition = initSpeechRecognition();
     }
 
-    if (isListening) {
+    if (isRecordingActive) {
+        // User wants to stop
+        isRecordingActive = false;
         recognition.stop();
+        updateMicUI(false);
     } else {
-        recognition.start();
+        // User wants to start
+        isRecordingActive = true;
+        updateMicUI(true); // Immediate feedback
+        try {
+            recognition.start();
+        } catch (e) {
+            console.error(e);
+            isRecordingActive = false;
+            updateMicUI(false);
+        }
     }
 });
 
