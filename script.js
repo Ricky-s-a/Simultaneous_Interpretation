@@ -43,9 +43,12 @@ function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const rec = new SpeechRecognition();
 
-    rec.lang = settings.sourceLang; // Dynamic
+    // Explicitly set language from current settings
+    rec.lang = settings.sourceLang;
     rec.continuous = true;
     rec.interimResults = true;
+
+    console.log(`Initialized Speech Recognition with language: ${rec.lang}`);
 
     rec.onstart = () => {
         updateMicUI(true);
@@ -59,6 +62,13 @@ function initSpeechRecognition() {
                 rec.start();
             } catch (e) {
                 console.warn('Restart failed, retrying in 1s...', e);
+                // Force verify language again on restart
+                if (rec.lang !== settings.sourceLang) {
+                    console.log("Language mismatch on restart, recreating...");
+                    recognition = initSpeechRecognition();
+                    if (recognition) recognition.start();
+                    return;
+                }
                 setTimeout(() => {
                     if (isRecordingActive) rec.start();
                 }, 1000);
@@ -124,11 +134,12 @@ function updateMicUI(listening) {
     if (listening) {
         micBtn.classList.add('listening');
         // Simple label mapping for status
-        let statusText = 'LISTENING';
-        if (settings.sourceLang === 'ja-JP') statusText = '聞いています';
-        else if (settings.sourceLang === 'zh-CN') statusText = 'LISTENING';
+        let langLabel = '???';
+        if (settings.sourceLang === 'ja-JP') langLabel = 'JP (聞いています)';
+        else if (settings.sourceLang === 'zh-CN') langLabel = 'CN (Listening)';
+        else if (settings.sourceLang === 'en-US') langLabel = 'EN (Listening)';
 
-        micStatus.textContent = statusText;
+        micStatus.textContent = langLabel;
         micBtn.querySelector('.mic-icon').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M320-320v-320h320v320H320Zm-80 80h480v-480H240v480Z"/></svg>'; // Stop icon
     } else {
         micBtn.classList.remove('listening');
@@ -271,17 +282,20 @@ async function translateText(text) {
 
 // Event Listeners
 micBtn.addEventListener('click', () => {
-    if (!recognition) {
-        recognition = initSpeechRecognition();
-    }
-
+    // FORCE RESET: Always create a fresh instance on Start to ensure settings matching
     if (isRecordingActive) {
         // User wants to stop
         isRecordingActive = false;
-        recognition.stop();
+        if (recognition) {
+            recognition.abort(); // Hard stop
+            recognition = null; // Destroy
+        }
         updateMicUI(false);
     } else {
         // User wants to start
+        // Always creating new instance to be safe
+        recognition = initSpeechRecognition();
+
         isRecordingActive = true;
         updateMicUI(true); // Immediate feedback
         try {
@@ -303,29 +317,21 @@ saveSettingsBtn.addEventListener('click', (e) => {
     // Save standard settings
     settings.apiKey = apiKeyInput.value.trim();
     settings.mode = translationModeSelect.value;
-
-    // Check if lang changed
-    const newSource = sourceLangSelect.value;
-    const newTarget = targetLangSelect.value;
-    const langChanged = (newSource !== settings.sourceLang);
-
-    settings.sourceLang = newSource;
-    settings.targetLang = newTarget;
+    settings.sourceLang = sourceLangSelect.value;
+    settings.targetLang = targetLangSelect.value;
 
     localStorage.setItem('yitalk_apikey', settings.apiKey);
     localStorage.setItem('yitalk_mode', settings.mode);
     localStorage.setItem('yitalk_source', settings.sourceLang);
     localStorage.setItem('yitalk_target', settings.targetLang);
 
-    // Auto-restart if language changed
-    if (langChanged && recognition) {
-        recognition.abort();
+    // Auto-stop if recording, to force restart for new settings
+    if (isRecordingActive) {
+        if (recognition) recognition.abort();
         recognition = null;
-        if (isRecordingActive) {
-            isRecordingActive = false;
-            updateMicUI(false);
-            alert("言語設定を変更しました。マイクボタンを押して再開してください。\nLanguage settings changed. Please restart mic.");
-        }
+        isRecordingActive = false;
+        updateMicUI(false);
+        alert("設定を保存しました。マイクボタンを押して再開してください。\nSettings saved. Please press Start.");
     }
 });
 
