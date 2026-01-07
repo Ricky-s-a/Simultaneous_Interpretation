@@ -87,14 +87,20 @@ h1 {
 /* Main Content */
 main {
     flex: 1;
-    margin-top: 60px;
-    margin-bottom: 90px;
-    padding: 1rem;
+    /* Use padding instead of margin so content scrolls behind the fixed elements (glassmorphism effect) */
+    padding-top: 80px;
+    padding-bottom: 160px;
+    /* Generous space for mic button + safe area */
+    padding-left: 1rem;
+    padding-right: 1rem;
     overflow-y: auto;
     scroll-behavior: smooth;
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    /* Ensure scrollbar works nicely */
+    height: 100%;
+    width: 100%;
 }
 
 /* Message Cards */
