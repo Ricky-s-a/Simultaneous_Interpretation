@@ -226,11 +226,14 @@ function startRecognition(side) {
 
     console.log(`Starting recognition for ${side} (${langCode})`);
 
+    let processedIndex = 0;
+
     recognition.onstart = () => {
         isRecording = true;
         currentRecordingSide = side;
         updateMicUI(side, true);
         messageBuffer = ""; // Reset buffer
+        processedIndex = 0; // Reset index tracking
     };
 
     recognition.onend = () => {
@@ -265,9 +268,15 @@ function startRecognition(side) {
         let finalChunk = '';
         let interimChunk = '';
 
+        // Process results starting from the index the browser claims is new, 
+        // OR from our own tracked index if we suspect overlap.
         for (let i = event.resultIndex; i < event.results.length; ++i) {
+            // Skip if we already processed this index as final
+            if (i < processedIndex) continue;
+
             if (event.results[i].isFinal) {
                 finalChunk += event.results[i][0].transcript;
+                processedIndex = i + 1; // Advance our tracker
             } else {
                 interimChunk += event.results[i][0].transcript;
             }
@@ -275,29 +284,28 @@ function startRecognition(side) {
 
         // Handle Final Chunk (Buffer it)
         if (finalChunk) {
-            // Avoid duplicate echoes
-            if (finalChunk === lastFinalTranscript) return;
-            lastFinalTranscript = finalChunk;
+            // Trim to avoid whitespace buildup
+            finalChunk = finalChunk.trim();
+            if (!finalChunk) return;
 
             // Add to buffer
             if (messageBuffer) {
-                // Add separator based on language? (Space for EN, none for ZH/JA usually but safety space is fine)
                 messageBuffer += " " + finalChunk;
             } else {
                 messageBuffer = finalChunk;
             }
 
-            // Update UI with buffered text (visual only, not yet translated)
+            // Update UI with buffered text
             if (!currentInterimCard) {
                 currentInterimCard = createCard(messageBuffer, false, side);
             } else {
-                updateCard(currentInterimCard, messageBuffer, side); // Show full buffer
+                updateCard(currentInterimCard, messageBuffer, side);
             }
 
             // Reset Timer
             if (commitTimer) clearTimeout(commitTimer);
 
-            // If buffer is very long, force commit to prevent visible lag
+            // If buffer is very long, force commit
             if (messageBuffer.length > 200) {
                 commitBuffer(side);
             } else {
@@ -307,12 +315,11 @@ function startRecognition(side) {
                 }, settings.delay);
             }
         }
-        // Handle Interim (Show visually appended to buffer)
+        // Handle Interim
         else if (interimChunk) {
             const fullVisual = messageBuffer ? (messageBuffer + " " + interimChunk) : interimChunk;
 
-            if (commitTimer) clearTimeout(commitTimer); // Pause commit while talking
-            // Restart commit timer if they pause during interim? No, interim means they are talking.
+            if (commitTimer) clearTimeout(commitTimer);
 
             if (!currentInterimCard) {
                 currentInterimCard = createCard(fullVisual, false, side);
@@ -481,7 +488,7 @@ async function translateText(text, fromLang, toLang) {
     // Helpers
     const getCode = (name) => {
         const map = {
-            'Japanese': 'ja', 'English': 'en', 'Chinese': 'zh',
+            'Japanese': 'ja', 'English': 'en', 'Chinese': 'zh-CN',
             'Korean': 'ko', 'French': 'fr', 'German': 'de',
             'Spanish': 'es', 'Italian': 'it', 'Russian': 'ru',
             'Vietnamese': 'vi', 'Thai': 'th', 'Indonesian': 'id',
@@ -498,8 +505,12 @@ async function translateText(text, fromLang, toLang) {
             const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${pair}`;
             const res = await fetch(url);
             const data = await res.json();
+
+            if (data.responseStatus !== 200) {
+                return `Error: ${data.responseDetails || "MyMemory Limit"}`;
+            }
             return data.responseData.translatedText;
-        } catch (e) { return "Error"; }
+        } catch (e) { return `Error: ${e.message}`; }
     }
 
     // Paid
