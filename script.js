@@ -19,10 +19,10 @@ const saveSettingsBtn = document.getElementById('saveSettings');
 // Inputs in Settings
 const uiLangSelect = document.getElementById('uiLang');
 const deepseekKeyInput = document.getElementById('deepseekKey');
-const geminiKeyInput = document.getElementById('geminiKey');
 const deeplKeyInput = document.getElementById('deeplKey');
-const googleKeyInput = document.getElementById('googleKey');
-const translationModeSelect = document.getElementById('translationMode');
+// const translationModeSelect (Removed)
+const silenceDelayInput = document.getElementById('silenceDelay');
+const silenceDelayVal = document.getElementById('silenceDelayVal');
 const sourceLangSelect = document.getElementById('sourceLang');
 const targetLangSelect = document.getElementById('targetLang');
 
@@ -37,12 +37,11 @@ let lastFinalTranscript = "";
 let settings = {
     uiLang: localStorage.getItem('yitalk_ui_lang') || 'ja',
     deepseekKey: localStorage.getItem('yitalk_apikey_deepseek') || '',
-    geminiKey: localStorage.getItem('yitalk_apikey_gemini') || '',
     deeplKey: localStorage.getItem('yitalk_apikey_deepl') || '',
-    googleKey: localStorage.getItem('yitalk_apikey_google') || '',
     mode: localStorage.getItem('yitalk_mode') || 'deepseek',
     sourceLang: localStorage.getItem('yitalk_source') || 'zh-CN',
-    targetLang: localStorage.getItem('yitalk_target') || 'Japanese'
+    targetLang: localStorage.getItem('yitalk_target') || 'Japanese',
+    delay: parseInt(localStorage.getItem('yitalk_delay')) || 1200
 };
 
 // Translations
@@ -54,6 +53,7 @@ const translations = {
         label_left_btn: "左ボタンの言語",
         label_right_btn: "右ボタンの言語",
         label_mode: "翻訳モード",
+        label_delay: "認識待機時間 (ms)",
         btn_cancel: "キャンセル",
         btn_save: "保存",
         tap_to_speak: "タップして話す",
@@ -71,6 +71,7 @@ const translations = {
         label_left_btn: "Left Button Language",
         label_right_btn: "Right Button Language",
         label_mode: "Mode",
+        label_delay: "Silence Detection (ms)",
         btn_cancel: "Cancel",
         btn_save: "Save",
         tap_to_speak: "Tap to Speak",
@@ -88,6 +89,7 @@ const translations = {
         label_left_btn: "左侧按钮语言",
         label_right_btn: "右侧按钮语言",
         label_mode: "模式",
+        label_delay: "识别等待时间 (ms)",
         btn_cancel: "取消",
         btn_save: "保存",
         tap_to_speak: "点击说话",
@@ -122,10 +124,10 @@ function initUI() {
     // Settings inputs
     uiLangSelect.value = settings.uiLang;
     deepseekKeyInput.value = settings.deepseekKey;
-    geminiKeyInput.value = settings.geminiKey;
     deeplKeyInput.value = settings.deeplKey;
-    googleKeyInput.value = settings.googleKey;
-    translationModeSelect.value = settings.mode;
+    silenceDelayInput.value = settings.delay;
+    silenceDelayVal.textContent = settings.delay + " ms";
+
     sourceLangSelect.value = settings.sourceLang;
     targetLangSelect.value = settings.targetLang;
 
@@ -182,10 +184,15 @@ function updateWelcomeMessage() {
 
 initUI();
 
+// Add listener for silenceDelayInput to update its value display
+silenceDelayInput.addEventListener('input', () => {
+    silenceDelayVal.textContent = silenceDelayInput.value + " ms";
+});
+
 // Buffering State
 let messageBuffer = "";
 let commitTimer = null;
-const COMMIT_DELAY = 1200; // Wait 1.2s for more speech before translating
+// const COMMIT_DELAY = 1200; // Wait 1.2s for more speech before translating
 
 // Speech Recognition Engine
 function startRecognition(side) {
@@ -283,13 +290,13 @@ function startRecognition(side) {
             if (commitTimer) clearTimeout(commitTimer);
 
             // If buffer is very long, force commit to prevent visible lag
-            if (messageBuffer.length > 150) {
+            if (messageBuffer.length > 200) {
                 commitBuffer(side);
             } else {
                 // Wait for more speech
                 commitTimer = setTimeout(() => {
                     commitBuffer(side);
-                }, COMMIT_DELAY);
+                }, settings.delay);
             }
         }
         // Handle Interim (Show visually appended to buffer)
@@ -490,9 +497,7 @@ async function translateText(text, fromLang, toLang) {
     // Paid
     let key = '';
     if (mode === 'deepseek') key = settings.deepseekKey;
-    if (mode === 'gemini') key = settings.geminiKey;
     if (mode === 'deepl') key = settings.deeplKey;
-    if (mode === 'google') key = settings.googleKey;
 
     if (!key) {
         const t = translations[settings.uiLang] || translations.ja;
@@ -554,37 +559,6 @@ async function translateText(text, fromLang, toLang) {
         } catch (e) { return `Error: ${e.message}`; }
     }
 
-    if (mode === 'gemini') {
-        try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
-            const prompt = `Translate this ${fromLang} text into natural ${toLang}. Return ONLY the translation.\n\nText: ${text}`;
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-            });
-            const data = await res.json();
-            return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Error";
-        } catch (e) { return "Error"; }
-    }
-
-    if (mode === 'google') {
-        try {
-            const url = `https://translation.googleapis.com/language/translate/v2?key=${key}`;
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    q: text,
-                    target: getCode(toLang),
-                    format: 'text'
-                })
-            });
-            const data = await res.json();
-            return data.data?.translations?.[0]?.translatedText || "Error";
-        } catch (e) { return "Error"; }
-    }
-
     if (mode === 'deepseek') {
         try {
             const prompt = `You are a professional interpreter. Translate the following ${fromLang} text into natural ${toLang}. Only output the translation.`;
@@ -641,48 +615,49 @@ micBtnTarget.addEventListener('click', () => {
 // Sync Quick Selector
 quickModelSelect.addEventListener('change', () => {
     settings.mode = quickModelSelect.value;
-    translationModeSelect.value = settings.mode;
     localStorage.setItem('yitalk_mode', settings.mode);
 });
 
-translationModeSelect.addEventListener('change', () => {
-    settings.mode = translationModeSelect.value;
-    quickModelSelect.value = settings.mode;
+// Slider Value Update
+silenceDelayInput.addEventListener('input', () => {
+    silenceDelayVal.textContent = silenceDelayInput.value + " ms";
 });
 
 // Settings Dialog Listeners
 settingsBtn.addEventListener('click', () => settingsDialog.showModal());
 
 saveSettingsBtn.addEventListener('click', () => {
-    settings.uiLang = uiLangSelect.value; // Save UI Lang
+    settings.uiLang = uiLangSelect.value;
     settings.deepseekKey = deepseekKeyInput.value.trim();
-    settings.geminiKey = geminiKeyInput.value.trim();
     settings.deeplKey = deeplKeyInput.value.trim();
-    settings.googleKey = googleKeyInput.value.trim();
-    settings.mode = translationModeSelect.value;
+    settings.delay = parseInt(silenceDelayInput.value);
+
+    // Mode is managed by home screen (quickModelSelect) primarily now, 
+    // but ensure we persist whatever is current.
+    // settings.mode is already up to date via quickModelSelect listener.
+
     settings.sourceLang = sourceLangSelect.value;
     settings.targetLang = targetLangSelect.value;
 
     localStorage.setItem('yitalk_ui_lang', settings.uiLang);
     localStorage.setItem('yitalk_apikey_deepseek', settings.deepseekKey);
-    localStorage.setItem('yitalk_apikey_gemini', settings.geminiKey);
     localStorage.setItem('yitalk_apikey_deepl', settings.deeplKey);
-    localStorage.setItem('yitalk_apikey_google', settings.googleKey);
+    localStorage.setItem('yitalk_delay', settings.delay);
     localStorage.setItem('yitalk_mode', settings.mode);
     localStorage.setItem('yitalk_source', settings.sourceLang);
     localStorage.setItem('yitalk_target', settings.targetLang);
 
     // Update UI
     updateTexts(); // Apply new language immediately
-    quickModelSelect.value = settings.mode;
+    // quickModelSelect.value = settings.mode; // Already synced
 
     // Stop recording if active
     if (isRecording) stopRecognition();
 
     const t = translations[settings.uiLang] || translations.ja;
     alert(t.alert_save);
+    settingsDialog.close();
 });
-
 settingsDialog.addEventListener('click', (e) => {
     const rect = settingsDialog.getBoundingClientRect();
     if (e.clientY < rect.top || e.clientY > rect.bottom ||

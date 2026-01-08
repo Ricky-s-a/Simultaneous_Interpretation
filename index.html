@@ -39,8 +39,6 @@
             <select id="quickModelSelect" class="model-pill">
                 <option value="deepseek">DeepSeek V3</option>
                 <option value="deepl">DeepL</option>
-                <option value="gemini">Google Gemini</option>
-                <option value="google">Google Translate</option>
                 <option value="free">Free (MyMemory)</option>
             </select>
         </div>
@@ -94,14 +92,8 @@
                 <label for="deepseekKey">DeepSeek API Key</label>
                 <input type="password" id="deepseekKey" placeholder="sk-...">
 
-                <label for="geminiKey">Google Gemini API Key</label>
-                <input type="password" id="geminiKey" placeholder="AIza...">
-
                 <label for="deeplKey">DeepL API Key</label>
                 <input type="password" id="deeplKey" placeholder="xxxxxxxx-xxxx...:fx">
-
-                <label for="googleKey">Google Cloud Translate Key</label>
-                <input type="password" id="googleKey" placeholder="AIza...">
             </div>
             <p class="hint" style="margin-top: 10px;" data-i18n="api_hint">Select the mode below to choose which key to
                 use.</p>
@@ -142,15 +134,11 @@
                 <option value="Portuguese">Portuguese (ポルトガル語)</option>
             </select>
 
-            <label for="translationMode" data-i18n="label_mode">Mode</label>
-            <select id="translationMode">
-                <option value="deepseek">DeepSeek V3 (Recommended for China)</option>
-                <option value="deepl">DeepL API (High Quality)</option>
-                <option value="gemini">Google Gemini (Recommended Global)</option>
-                <option value="google">Google Translate API</option>
-                <option value="free">Free - MyMemory (Limited)</option>
-                <option value="manual">Manual / None</option>
-            </select>
+            <label for="silenceDelay" data-i18n="label_delay">Silence Detection (Wait Time)</label>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                <input type="range" id="silenceDelay" min="500" max="3000" step="100" value="1200" style="flex:1">
+                <span id="silenceDelayVal">1200 ms</span>
+            </div>
 
             <div class="dialog-actions">
                 <button value="cancel" class="btn-text" data-i18n="btn_cancel">Cancel</button>
