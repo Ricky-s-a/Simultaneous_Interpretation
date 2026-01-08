@@ -9,6 +9,7 @@ const labelSource = document.getElementById('labelSource');
 const labelTarget = document.getElementById('labelTarget');
 const statusSource = micBtnSource.querySelector('.status-label');
 const statusTarget = micBtnTarget.querySelector('.status-label');
+const welcomeMessage = document.getElementById('welcomeMessage');
 
 const outputContainer = document.getElementById('outputContainer');
 const settingsBtn = document.getElementById('settingsBtn');
@@ -68,6 +69,7 @@ function initUI() {
     // Main UI
     quickModelSelect.value = settings.mode;
     updateLanguageLabels();
+    updateWelcomeMessage();
 }
 
 function updateLanguageLabels() {
@@ -75,6 +77,20 @@ function updateLanguageLabels() {
     const tgtName = settings.targetLang; // already a name
     labelSource.textContent = srcName;
     labelTarget.textContent = tgtName;
+}
+
+function updateWelcomeMessage() {
+    const srcName = codeToName[settings.sourceLang] || settings.sourceLang;
+    const tgtName = settings.targetLang;
+
+    // Simple localization check (if interface seems to be Japanese)
+    // We'll stick to Japanese instruction as per user request style
+    const msg = `下のボタンを押して、<b>${srcName}</b> または <b>${tgtName}</b> で話しかけてください。<br>設定からAPIキーを入力すると、高精度の翻訳が利用できます。`;
+
+    const p = welcomeMessage.querySelector('p');
+    if (p) {
+        p.innerHTML = msg;
+    }
 }
 
 initUI();
@@ -440,6 +456,7 @@ saveSettingsBtn.addEventListener('click', () => {
     // Update UI
     quickModelSelect.value = settings.mode;
     updateLanguageLabels();
+    updateWelcomeMessage();
 
     // Stop recording if active
     if (isRecording) stopRecognition();

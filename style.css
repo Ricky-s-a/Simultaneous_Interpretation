@@ -94,8 +94,8 @@ main {
     flex: 1;
     /* Use padding instead of margin so content scrolls behind the fixed elements (glassmorphism effect) */
     padding-top: 80px;
-    padding-bottom: 160px;
-    /* Generous space for mic button + safe area */
+    padding-bottom: 240px;
+    /* Generous space for dual mic buttons + safe area */
     padding-left: 1rem;
     padding-right: 1rem;
     overflow-y: auto;
