@@ -20,6 +20,7 @@ const saveSettingsBtn = document.getElementById('saveSettings');
 const uiLangSelect = document.getElementById('uiLang');
 const deepseekKeyInput = document.getElementById('deepseekKey');
 const geminiKeyInput = document.getElementById('geminiKey');
+const deeplKeyInput = document.getElementById('deeplKey');
 const googleKeyInput = document.getElementById('googleKey');
 const translationModeSelect = document.getElementById('translationMode');
 const sourceLangSelect = document.getElementById('sourceLang');
@@ -37,6 +38,7 @@ let settings = {
     uiLang: localStorage.getItem('yitalk_ui_lang') || 'ja',
     deepseekKey: localStorage.getItem('yitalk_apikey_deepseek') || '',
     geminiKey: localStorage.getItem('yitalk_apikey_gemini') || '',
+    deeplKey: localStorage.getItem('yitalk_apikey_deepl') || '',
     googleKey: localStorage.getItem('yitalk_apikey_google') || '',
     mode: localStorage.getItem('yitalk_mode') || 'deepseek',
     sourceLang: localStorage.getItem('yitalk_source') || 'zh-CN',
@@ -119,6 +121,7 @@ function initUI() {
     uiLangSelect.value = settings.uiLang;
     deepseekKeyInput.value = settings.deepseekKey;
     geminiKeyInput.value = settings.geminiKey;
+    deeplKeyInput.value = settings.deeplKey;
     googleKeyInput.value = settings.googleKey;
     translationModeSelect.value = settings.mode;
     sourceLangSelect.value = settings.sourceLang;
@@ -421,11 +424,63 @@ async function translateText(text, fromLang, toLang) {
     let key = '';
     if (mode === 'deepseek') key = settings.deepseekKey;
     if (mode === 'gemini') key = settings.geminiKey;
+    if (mode === 'deepl') key = settings.deeplKey;
     if (mode === 'google') key = settings.googleKey;
 
     if (!key) {
         const t = translations[settings.uiLang] || translations.ja;
         return t.error_no_key;
+    }
+
+    if (mode === 'deepl') {
+        try {
+            // Determine API Endpoint (Free vs Pro)
+            // Free keys usually end with ':fx'
+            const isFree = key.endsWith(':fx');
+            const baseUrl = isFree ? 'https://api-free.deepl.com/v2/translate' : 'https://api.deepl.com/v2/translate';
+
+            // Map languages to DeepL supported codes (upper case)
+            // JA -> JA, ZH -> ZH, EN -> EN-US (preference)
+            // Code map helper
+            const getDeepLCode = (name) => {
+                const map = {
+                    'Japanese': 'JA', 'English': 'EN-US', 'Chinese': 'ZH',
+                    'Korean': 'KO', 'French': 'FR', 'German': 'DE',
+                    'Spanish': 'ES', 'Italian': 'IT', 'Russian': 'RU',
+                    'Vietnamese': 'ID', /* DeepL might not support VI/TH/ID fully in free tier or codes differ? 
+                       Actually DeepL supports ID (Indonesian) on free.
+                       Thai/Vietnamese not supported yet in standard DeepL.
+                    */
+                    'Indonesian': 'ID'
+                };
+                // Fallback for unsupported langs in DeepL?
+                return map[name] || null;
+            };
+
+            const targetCode = getDeepLCode(toLang);
+            if (!targetCode) return `DeepL doesn't support ${toLang}`;
+
+            const url = `${baseUrl}`;
+            const params = new URLSearchParams();
+            params.append('auth_key', key);
+            params.append('text', text);
+            params.append('target_lang', targetCode);
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                return `DeepL Error: ${err.message || res.status}`;
+            }
+
+            const data = await res.json();
+            return data.translations?.[0]?.text || "Error";
+
+        } catch (e) { return `Error: ${e.message}`; }
     }
 
     if (mode === 'gemini') {
@@ -531,6 +586,7 @@ saveSettingsBtn.addEventListener('click', () => {
     settings.uiLang = uiLangSelect.value; // Save UI Lang
     settings.deepseekKey = deepseekKeyInput.value.trim();
     settings.geminiKey = geminiKeyInput.value.trim();
+    settings.deeplKey = deeplKeyInput.value.trim();
     settings.googleKey = googleKeyInput.value.trim();
     settings.mode = translationModeSelect.value;
     settings.sourceLang = sourceLangSelect.value;
@@ -539,6 +595,7 @@ saveSettingsBtn.addEventListener('click', () => {
     localStorage.setItem('yitalk_ui_lang', settings.uiLang);
     localStorage.setItem('yitalk_apikey_deepseek', settings.deepseekKey);
     localStorage.setItem('yitalk_apikey_gemini', settings.geminiKey);
+    localStorage.setItem('yitalk_apikey_deepl', settings.deeplKey);
     localStorage.setItem('yitalk_apikey_google', settings.googleKey);
     localStorage.setItem('yitalk_mode', settings.mode);
     localStorage.setItem('yitalk_source', settings.sourceLang);

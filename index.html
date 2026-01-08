@@ -38,6 +38,7 @@
         <div class="controls-top">
             <select id="quickModelSelect" class="model-pill">
                 <option value="deepseek">DeepSeek V3</option>
+                <option value="deepl">DeepL</option>
                 <option value="gemini">Google Gemini</option>
                 <option value="google">Google Translate</option>
                 <option value="free">Free (MyMemory)</option>
@@ -96,6 +97,9 @@
                 <label for="geminiKey">Google Gemini API Key</label>
                 <input type="password" id="geminiKey" placeholder="AIza...">
 
+                <label for="deeplKey">DeepL API Key</label>
+                <input type="password" id="deeplKey" placeholder="xxxxxxxx-xxxx...:fx">
+
                 <label for="googleKey">Google Cloud Translate Key</label>
                 <input type="password" id="googleKey" placeholder="AIza...">
             </div>
@@ -137,6 +141,7 @@
             <label for="translationMode" data-i18n="label_mode">Mode</label>
             <select id="translationMode">
                 <option value="deepseek">DeepSeek V3 (Recommended for China)</option>
+                <option value="deepl">DeepL API (High Quality)</option>
                 <option value="gemini">Google Gemini (Recommended Global)</option>
                 <option value="google">Google Translate API</option>
                 <option value="free">Free - MyMemory (Limited)</option>
