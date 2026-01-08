@@ -370,6 +370,11 @@ select:focus {
     border-color: var(--accent-color);
 }
 
+option {
+    background-color: #1e1e2e;
+    color: white;
+}
+
 .hint {
     font-size: 0.8rem;
     color: var(--text-secondary);

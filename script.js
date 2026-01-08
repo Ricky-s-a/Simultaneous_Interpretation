@@ -553,8 +553,8 @@ async function translateText(text, fromLang, toLang) {
             const targetCode = getDeepLCode(toLang);
             if (!targetCode) return `DeepL doesn't support ${toLang}`;
 
-            // Use direct URL (Proxy might be blocked or causing Forbidden)
-            const url = baseUrl;
+            // Use ThingProxy as alternative CORS proxy
+            const url = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(baseUrl)}`;
 
             const params = new URLSearchParams();
             params.append('auth_key', key);
