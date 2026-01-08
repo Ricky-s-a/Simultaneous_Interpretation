@@ -1,5 +1,12 @@
 // Initial Setup
-const { pinyin } = pinyinPro;
+let pinyin = (text) => text; // Fallback
+try {
+    if (window.pinyinPro) {
+        pinyin = window.pinyinPro.pinyin;
+    }
+} catch (e) {
+    console.error("Pinyin library failed to load", e);
+}
 
 // DOM Elements: Controls
 const quickModelSelect = document.getElementById('quickModelSelect');
@@ -15,6 +22,7 @@ const outputContainer = document.getElementById('outputContainer');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsDialog = document.getElementById('settingsDialog');
 const saveSettingsBtn = document.getElementById('saveSettings');
+const cancelSettingsBtn = document.getElementById('cancelSettings');
 
 // Inputs in Settings
 const uiLangSelect = document.getElementById('uiLang');
@@ -658,6 +666,13 @@ saveSettingsBtn.addEventListener('click', () => {
     alert(t.alert_save);
     settingsDialog.close();
 });
+
+if (cancelSettingsBtn) {
+    cancelSettingsBtn.addEventListener('click', () => {
+        settingsDialog.close();
+    });
+}
+
 settingsDialog.addEventListener('click', (e) => {
     const rect = settingsDialog.getBoundingClientRect();
     if (e.clientY < rect.top || e.clientY > rect.bottom ||
