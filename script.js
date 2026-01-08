@@ -17,6 +17,7 @@ const settingsDialog = document.getElementById('settingsDialog');
 const saveSettingsBtn = document.getElementById('saveSettings');
 
 // Inputs in Settings
+const uiLangSelect = document.getElementById('uiLang');
 const deepseekKeyInput = document.getElementById('deepseekKey');
 const geminiKeyInput = document.getElementById('geminiKey');
 const googleKeyInput = document.getElementById('googleKey');
@@ -33,12 +34,68 @@ let lastFinalTranscript = "";
 
 // Settings
 let settings = {
+    uiLang: localStorage.getItem('yitalk_ui_lang') || 'ja',
     deepseekKey: localStorage.getItem('yitalk_apikey_deepseek') || '',
     geminiKey: localStorage.getItem('yitalk_apikey_gemini') || '',
     googleKey: localStorage.getItem('yitalk_apikey_google') || '',
     mode: localStorage.getItem('yitalk_mode') || 'deepseek',
     sourceLang: localStorage.getItem('yitalk_source') || 'zh-CN',
     targetLang: localStorage.getItem('yitalk_target') || 'Japanese'
+};
+
+// Translations
+const translations = {
+    ja: {
+        settings_title: "設定",
+        ui_language: "表示言語",
+        api_hint: "使用する翻訳モード（キー）を以下で選択してください。",
+        label_left_btn: "左ボタンの言語",
+        label_right_btn: "右ボタンの言語",
+        label_mode: "翻訳モード",
+        btn_cancel: "キャンセル",
+        btn_save: "保存",
+        tap_to_speak: "タップして話す",
+        listening: "聞いています...",
+        welcome_template: "<b>{src}</b> または <b>{tgt}</b> で話しかけてください。<br>設定からAPIキーを入力すると、高精度の翻訳が利用できます。",
+        alert_browser_unsupported: "このブラウザは音声認識をサポートしていません。Google ChromeまたはSafariを使用してください。",
+        alert_mic_denied: "マイクの使用が許可されていません。",
+        alert_save: "設定を保存しました。",
+        error_no_key: "※設定からAPIキーを入力してください"
+    },
+    en: {
+        settings_title: "Settings",
+        ui_language: "UI Language",
+        api_hint: "Select the mode below to choose which key to use.",
+        label_left_btn: "Left Button Language",
+        label_right_btn: "Right Button Language",
+        label_mode: "Mode",
+        btn_cancel: "Cancel",
+        btn_save: "Save",
+        tap_to_speak: "Tap to Speak",
+        listening: "Listening...",
+        welcome_template: "Speak in <b>{src}</b> or <b>{tgt}</b> using the buttons below.<br>Enter an API Key in settings for high-quality translation.",
+        alert_browser_unsupported: "Browser not supported. Please use Chrome or Safari.",
+        alert_mic_denied: "Microphone access denied.",
+        alert_save: "Settings saved.",
+        error_no_key: "* Please enter API Key in settings"
+    },
+    zh: {
+        settings_title: "设置",
+        ui_language: "界面语言",
+        api_hint: "请在下方选择要使用的翻译模式（API密钥）。",
+        label_left_btn: "左侧按钮语言",
+        label_right_btn: "右侧按钮语言",
+        label_mode: "模式",
+        btn_cancel: "取消",
+        btn_save: "保存",
+        tap_to_speak: "点击说话",
+        listening: "正在聆听...",
+        welcome_template: "请按下方按钮使用 <b>{src}</b> 或 <b>{tgt}</b> 说话。<br>在设置中输入API密钥可获得高质量翻译。",
+        alert_browser_unsupported: "您的浏览器不支持语音识别，请使用 Chrome 或 Safari。",
+        alert_mic_denied: "无法访问麦克风。",
+        alert_save: "设置已保存。",
+        error_no_key: "* 请在设置中输入 API 密钥"
+    }
 };
 
 // Language Maps
@@ -59,6 +116,7 @@ const nameToCode = {
 // Initialize UI
 function initUI() {
     // Settings inputs
+    uiLangSelect.value = settings.uiLang;
     deepseekKeyInput.value = settings.deepseekKey;
     geminiKeyInput.value = settings.geminiKey;
     googleKeyInput.value = settings.googleKey;
@@ -68,8 +126,29 @@ function initUI() {
 
     // Main UI
     quickModelSelect.value = settings.mode;
+
+    updateTexts();
+}
+
+function updateTexts() {
+    const lang = settings.uiLang;
+    const t = translations[lang] || translations.ja;
+
+    // Update static elements with data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[key]) el.textContent = t[key];
+    });
+
+    // Update dynamic elements
     updateLanguageLabels();
     updateWelcomeMessage();
+
+    // Update button status labels (if not recording)
+    if (!isRecording) {
+        statusSource.textContent = t.tap_to_speak;
+        statusTarget.textContent = t.tap_to_speak;
+    }
 }
 
 function updateLanguageLabels() {
@@ -83,9 +162,12 @@ function updateWelcomeMessage() {
     const srcName = codeToName[settings.sourceLang] || settings.sourceLang;
     const tgtName = settings.targetLang;
 
-    // Simple localization check (if interface seems to be Japanese)
-    // We'll stick to Japanese instruction as per user request style
-    const msg = `下のボタンを押して、<b>${srcName}</b> または <b>${tgtName}</b> で話しかけてください。<br>設定からAPIキーを入力すると、高精度の翻訳が利用できます。`;
+    const lang = settings.uiLang;
+    const t = translations[lang] || translations.ja;
+
+    let msg = t.welcome_template
+        .replace('{src}', srcName)
+        .replace('{tgt}', tgtName);
 
     const p = welcomeMessage.querySelector('p');
     if (p) {
@@ -98,7 +180,8 @@ initUI();
 // Speech Recognition Engine
 function startRecognition(side) {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        alert('Browser not supported.');
+        const t = translations[settings.uiLang] || translations.ja;
+        alert(t.alert_browser_unsupported);
         return;
     }
 
@@ -144,7 +227,8 @@ function startRecognition(side) {
     recognition.onerror = (event) => {
         console.error('Error', event.error);
         if (event.error === 'not-allowed') {
-            alert('Microphone access denied.');
+            const t = translations[settings.uiLang] || translations.ja;
+            alert(t.alert_mic_denied);
             stopRecognition();
         }
     };
@@ -205,16 +289,18 @@ function updateMicUI(side, active) {
     const otherBtn = side === 'source' ? micBtnTarget : micBtnSource;
     const otherStatus = side === 'source' ? statusTarget : statusSource;
 
+    const t = translations[settings.uiLang] || translations.ja;
+
     if (active) {
         btn.classList.add('listening');
-        status.textContent = 'Listening...';
+        status.textContent = t.listening;
         // Disable other button visually?
         otherBtn.style.opacity = '0.5';
         otherBtn.style.pointerEvents = 'none';
         quickModelSelect.disabled = true;
     } else {
         btn.classList.remove('listening');
-        status.textContent = 'Tap to Speak';
+        status.textContent = t.tap_to_speak;
         otherBtn.style.opacity = '1';
         otherBtn.style.pointerEvents = 'auto';
         quickModelSelect.disabled = false;
@@ -337,7 +423,10 @@ async function translateText(text, fromLang, toLang) {
     if (mode === 'gemini') key = settings.geminiKey;
     if (mode === 'google') key = settings.googleKey;
 
-    if (!key) return "No API Key";
+    if (!key) {
+        const t = translations[settings.uiLang] || translations.ja;
+        return t.error_no_key;
+    }
 
     if (mode === 'gemini') {
         try {
@@ -439,6 +528,7 @@ translationModeSelect.addEventListener('change', () => {
 settingsBtn.addEventListener('click', () => settingsDialog.showModal());
 
 saveSettingsBtn.addEventListener('click', () => {
+    settings.uiLang = uiLangSelect.value; // Save UI Lang
     settings.deepseekKey = deepseekKeyInput.value.trim();
     settings.geminiKey = geminiKeyInput.value.trim();
     settings.googleKey = googleKeyInput.value.trim();
@@ -446,6 +536,7 @@ saveSettingsBtn.addEventListener('click', () => {
     settings.sourceLang = sourceLangSelect.value;
     settings.targetLang = targetLangSelect.value;
 
+    localStorage.setItem('yitalk_ui_lang', settings.uiLang);
     localStorage.setItem('yitalk_apikey_deepseek', settings.deepseekKey);
     localStorage.setItem('yitalk_apikey_gemini', settings.geminiKey);
     localStorage.setItem('yitalk_apikey_google', settings.googleKey);
@@ -454,14 +545,14 @@ saveSettingsBtn.addEventListener('click', () => {
     localStorage.setItem('yitalk_target', settings.targetLang);
 
     // Update UI
+    updateTexts(); // Apply new language immediately
     quickModelSelect.value = settings.mode;
-    updateLanguageLabels();
-    updateWelcomeMessage();
 
     // Stop recording if active
     if (isRecording) stopRecognition();
 
-    settingsDialog.close();
+    const t = translations[settings.uiLang] || translations.ja;
+    alert(t.alert_save);
 });
 
 settingsDialog.addEventListener('click', (e) => {
