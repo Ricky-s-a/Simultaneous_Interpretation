@@ -460,7 +460,9 @@ async function translateText(text, fromLang, toLang) {
             const targetCode = getDeepLCode(toLang);
             if (!targetCode) return `DeepL doesn't support ${toLang}`;
 
-            const url = `${baseUrl}`;
+            // Use CORS Proxy to bypass browser restrictions
+            const url = `https://corsproxy.io/?${encodeURIComponent(baseUrl)}`;
+
             const params = new URLSearchParams();
             params.append('auth_key', key);
             params.append('text', text);
