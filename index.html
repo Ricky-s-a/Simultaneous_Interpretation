@@ -64,9 +64,10 @@
         <form method="dialog">
             <h2>Settings / 設定</h2>
 
-            <label for="apiKey">DeepSeek API Key</label>
-            <input type="password" id="apiKey" placeholder="sk-...">
-            <p class="hint">キーがない場合、簡易翻訳ボタンが表示されます(デモ用)。<br>Without a key, translation may be limited.</p>
+            <label for="apiKey">API Key (DeepSeek / Gemini / Google)</label>
+            <input type="password" id="apiKey" placeholder="Key...">
+            <p class="hint">DeepSeek, Gemini, or Google Cloud API Key depending on mode.<br>Translation may be limited
+                without a key.</p>
 
             <label for="sourceLang">Input Language (話す言語)</label>
             <select id="sourceLang">
@@ -102,7 +103,9 @@
 
             <label for="translationMode">Mode</label>
             <select id="translationMode">
-                <option value="deepseek">DeepSeek V3 (High Quality / Paid)</option>
+                <option value="deepseek">DeepSeek V3 (Recommended for China)</option>
+                <option value="gemini">Google Gemini (Recommended Global)</option>
+                <option value="google">Google Translate API</option>
                 <option value="free">Free - MyMemory (Limited)</option>
                 <option value="manual">Manual / None</option>
             </select>

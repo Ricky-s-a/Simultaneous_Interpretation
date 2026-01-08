@@ -248,56 +248,119 @@ async function translateText(text) {
         }
     }
 
-    // DeepSeek Mode
+    // Check API Key for Paid Modes
     if (!settings.apiKey) {
         return "※設定からAPIキーを入力するか、Freeモードを選択してください";
     }
 
-    try {
-        console.log("Requesting translation...", text);
+    // Google Gemini
+    if (mode === 'gemini') {
+        try {
+            console.log("Requesting Gemini translation...", text);
+            const target = settings.targetLang;
+            const prompt = `Translate this text into natural ${target}. Return ONLY the translation, no checks, no markdown, no notes.\n\nText: ${text}`;
 
-        // Dynamic Prompt based on language settings
-        const prompt = `You are a professional simultaneous interpreter. Translate the following ${settings.sourceLang} text into natural ${settings.targetLang}. Do not add any explanations, only the translation.`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${settings.apiKey}`;
 
-        // DeepSeek API Endpoint
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${settings.apiKey}`
-            },
-            body: JSON.stringify({
-                model: "deepseek-chat",
-                messages: [
-                    {
-                        "role": "system",
-                        "content": prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": text
-                    }
-                ],
-                max_tokens: 256
-            })
-        });
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: prompt }]
+                    }]
+                })
+            });
 
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            return `API Error: ${response.status} ${errData.error?.message || ''}`;
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                return `Gemini Error: ${err.error?.message || response.status}`;
+            }
+
+            const data = await response.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Error parsing Gemini";
+
+        } catch (e) {
+            console.error(e);
+            return `通信エラー (Gemini): ${e.message}`;
         }
-
-        const data = await response.json();
-        if (data.error) {
-            return `Error: ${data.error.message}`;
-        }
-
-        return data.choices[0].message.content.trim();
-
-    } catch (e) {
-        console.error('Translation failed', e);
-        return `通信エラー: ${e.message}`;
     }
+
+    // Google Translate API
+    if (mode === 'google') {
+        try {
+            console.log("Requesting Google Translate...", text);
+
+            const map = {
+                'Japanese': 'ja', 'English': 'en', 'Chinese': 'zh',
+                'Korean': 'ko', 'French': 'fr', 'German': 'de',
+                'Spanish': 'es', 'Italian': 'it', 'Russian': 'ru',
+                'Vietnamese': 'vi', 'Thai': 'th', 'Indonesian': 'id'
+            };
+            const target = map[settings.targetLang] || 'ja';
+            const url = `https://translation.googleapis.com/language/translate/v2?key=${settings.apiKey}`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    q: text,
+                    target: target,
+                    format: 'text'
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                return `Google API Error: ${err.error?.message || response.status}`;
+            }
+
+            const data = await response.json();
+            return data.data?.translations?.[0]?.translatedText || "Error parsing Google";
+
+        } catch (e) {
+            console.error(e);
+            return `通信エラー (Google): ${e.message}`;
+        }
+    }
+
+    // DeepSeek Mode (Default)
+    if (mode === 'deepseek') {
+        try {
+            console.log("Requesting DeepSeek translation...", text);
+            const prompt = `You are a professional simultaneous interpreter. Translate the following ${settings.sourceLang} text into natural ${settings.targetLang}. Do not add any explanations, only the translation.`;
+
+            const response = await fetch('https://api.deepseek.com/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: "deepseek-chat",
+                    messages: [
+                        { "role": "system", "content": prompt },
+                        { "role": "user", "content": text }
+                    ],
+                    max_tokens: 256
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                return `API Error: ${response.status} ${errData.error?.message || ''}`;
+            }
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content.trim() || "Error";
+
+        } catch (e) {
+            console.error('Translation failed', e);
+            return `通信エラー: ${e.message}`;
+        }
+    }
+
+    return "Unknown Mode";
 }
 
 // Event Listeners
