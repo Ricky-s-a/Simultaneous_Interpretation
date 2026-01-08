@@ -105,14 +105,16 @@ const codeToName = {
     'zh-CN': 'Chinese', 'en-US': 'English', 'ja-JP': 'Japanese',
     'ko-KR': 'Korean', 'fr-FR': 'French', 'de-DE': 'German',
     'es-ES': 'Spanish', 'it-IT': 'Italian', 'ru-RU': 'Russian',
-    'vi-VN': 'Vietnamese', 'th-TH': 'Thai', 'id-ID': 'Indonesian'
+    'vi-VN': 'Vietnamese', 'th-TH': 'Thai', 'id-ID': 'Indonesian',
+    'ar-SA': 'Arabic', 'pt-PT': 'Portuguese'
 };
 
 const nameToCode = {
     'Chinese': 'zh-CN', 'English': 'en-US', 'Japanese': 'ja-JP',
     'Korean': 'ko-KR', 'French': 'fr-FR', 'German': 'de-DE',
     'Spanish': 'es-ES', 'Italian': 'it-IT', 'Russian': 'ru-RU',
-    'Vietnamese': 'vi-VN', 'Thai': 'th-TH', 'Indonesian': 'id-ID'
+    'Vietnamese': 'vi-VN', 'Thai': 'th-TH', 'Indonesian': 'id-ID',
+    'Arabic': 'ar-SA', 'Portuguese': 'pt-PT'
 };
 
 // Initialize UI
@@ -403,7 +405,8 @@ async function translateText(text, fromLang, toLang) {
             'Japanese': 'ja', 'English': 'en', 'Chinese': 'zh',
             'Korean': 'ko', 'French': 'fr', 'German': 'de',
             'Spanish': 'es', 'Italian': 'it', 'Russian': 'ru',
-            'Vietnamese': 'vi', 'Thai': 'th', 'Indonesian': 'id'
+            'Vietnamese': 'vi', 'Thai': 'th', 'Indonesian': 'id',
+            'Arabic': 'ar', 'Portuguese': 'pt'
         };
         return map[name] || 'ja';
     };
@@ -451,7 +454,9 @@ async function translateText(text, fromLang, toLang) {
                        Actually DeepL supports ID (Indonesian) on free.
                        Thai/Vietnamese not supported yet in standard DeepL.
                     */
-                    'Indonesian': 'ID'
+                    'Indonesian': 'ID',
+                    'Arabic': 'AR',
+                    'Portuguese': 'PT-PT' // or PT-BR
                 };
                 // Fallback for unsupported langs in DeepL?
                 return map[name] || null;
