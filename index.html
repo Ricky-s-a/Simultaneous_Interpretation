@@ -35,39 +35,64 @@
     </main>
 
     <div class="controls">
-        <button id="swapLangBtn" class="icon-btn swap-btn" aria-label="Swap Languages"
-            style="margin-right: 20px; background: rgba(255,255,255,0.1); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
-            <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor">
-                <path
-                    d="M280-120 80-320l200-200 57 56-104 104h607v80H233l104 104-57 56Zm400-320-57-56 104-104H120v-80h607L623-784l57-56 200 200-200 200Z" />
-            </svg>
-        </button>
+        <div class="controls-top">
+            <select id="quickModelSelect" class="model-pill">
+                <option value="deepseek">DeepSeek V3</option>
+                <option value="gemini">Google Gemini</option>
+                <option value="google">Google Translate</option>
+                <option value="free">Free (MyMemory)</option>
+            </select>
+        </div>
+        <div class="controls-main">
+            <button id="micBtnSource" class="mic-btn split-btn">
+                <div class="mic-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24"
+                        fill="currentColor">
+                        <path
+                            d="M480-400q-50 0-85-35t-35-85v-240q0-50 35-85t85-35q50 0 85 35t35 85v240q0 50-35 85t-85 35Z" />
+                        <path
+                            d="M440-160v-123q-106-15-173-94.5T200-560h80q0 83 58.5 141.5T480-360q83 0 141.5-58.5T680-560h80q0 102-67 182.5T520-283v123h-80Z" />
+                    </svg>
+                </div>
+                <div class="btn-labels">
+                    <span class="lang-label" id="labelSource">Chinese</span>
+                    <span class="status-label">Tap to Speak</span>
+                </div>
+            </button>
 
-        <button id="micBtn" class="mic-btn">
-            <div class="mic-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" height="32" viewBox="0 -960 960 960" width="32"
-                    fill="currentColor">
-                    <path
-                        d="M480-400q-50 0-85-35t-35-85v-240q0-50 35-85t85-35q50 0 85 35t35 85v240q0 50-35 85t-85 35Z" />
-                    <path
-                        d="M440-160v-123q-106-15-173-94.5T200-560h80q0 83 58.5 141.5T480-360q83 0 141.5-58.5T680-560h80q0 102-67 182.5T520-283v123h-80Z" />
-                </svg>
-            </div>
-            <span class="mic-status">START</span>
-        </button>
-
-        <!-- Spacer for visual balance if needed -->
-        <div style="width: 48px; margin-left: 20px;"></div>
+            <button id="micBtnTarget" class="mic-btn split-btn">
+                <div class="mic-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24"
+                        fill="currentColor">
+                        <path
+                            d="M480-400q-50 0-85-35t-35-85v-240q0-50 35-85t85-35q50 0 85 35t35 85v240q0 50-35 85t-85 35Z" />
+                        <path
+                            d="M440-160v-123q-106-15-173-94.5T200-560h80q0 83 58.5 141.5T480-360q83 0 141.5-58.5T680-560h80q0 102-67 182.5T520-283v123h-80Z" />
+                    </svg>
+                </div>
+                <div class="btn-labels">
+                    <span class="lang-label" id="labelTarget">Japanese</span>
+                    <span class="status-label">Tap to Speak</span>
+                </div>
+            </button>
+        </div>
     </div>
 
     <dialog id="settingsDialog">
         <form method="dialog">
             <h2>Settings / 設定</h2>
 
-            <label for="apiKey">API Key (DeepSeek / Gemini / Google)</label>
-            <input type="password" id="apiKey" placeholder="Key...">
-            <p class="hint">DeepSeek, Gemini, or Google Cloud API Key depending on mode.<br>Translation may be limited
-                without a key.</p>
+            <div class="api-keys-section">
+                <label for="deepseekKey">DeepSeek API Key</label>
+                <input type="password" id="deepseekKey" placeholder="sk-...">
+
+                <label for="geminiKey">Google Gemini API Key</label>
+                <input type="password" id="geminiKey" placeholder="AIza...">
+
+                <label for="googleKey">Google Cloud Translate Key</label>
+                <input type="password" id="googleKey" placeholder="AIza...">
+            </div>
+            <p class="hint" style="margin-top: 10px;">Select the mode below to choose which key to use.</p>
 
             <label for="sourceLang">Input Language (話す言語)</label>
             <select id="sourceLang">

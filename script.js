@@ -8,7 +8,12 @@ const outputContainer = document.getElementById('outputContainer');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsDialog = document.getElementById('settingsDialog');
 const saveSettingsBtn = document.getElementById('saveSettings');
-const apiKeyInput = document.getElementById('apiKey');
+
+// Inputs
+const deepseekKeyInput = document.getElementById('deepseekKey');
+const geminiKeyInput = document.getElementById('geminiKey');
+const googleKeyInput = document.getElementById('googleKey');
+
 const translationModeSelect = document.getElementById('translationMode');
 const sourceLangSelect = document.getElementById('sourceLang');
 const targetLangSelect = document.getElementById('targetLang');
@@ -22,14 +27,19 @@ let lastFinalTranscript = ""; // To prevent duplicates
 
 // Settings
 let settings = {
-    apiKey: localStorage.getItem('yitalk_apikey') || '',
+    deepseekKey: localStorage.getItem('yitalk_apikey_deepseek') || '',
+    geminiKey: localStorage.getItem('yitalk_apikey_gemini') || '',
+    googleKey: localStorage.getItem('yitalk_apikey_google') || '',
     mode: localStorage.getItem('yitalk_mode') || 'deepseek',
     sourceLang: localStorage.getItem('yitalk_source') || 'zh-CN',
     targetLang: localStorage.getItem('yitalk_target') || 'Japanese'
 };
 
 // Initialize Settings UI
-apiKeyInput.value = settings.apiKey;
+deepseekKeyInput.value = settings.deepseekKey;
+geminiKeyInput.value = settings.geminiKey;
+googleKeyInput.value = settings.googleKey;
+
 translationModeSelect.value = settings.mode;
 sourceLangSelect.value = settings.sourceLang;
 targetLangSelect.value = settings.targetLang;
@@ -248,9 +258,14 @@ async function translateText(text) {
         }
     }
 
-    // Check API Key for Paid Modes
-    if (!settings.apiKey) {
-        return "※設定からAPIキーを入力するか、Freeモードを選択してください";
+    // Paid Modes
+    let activeKey = '';
+    if (mode === 'deepseek') activeKey = settings.deepseekKey;
+    if (mode === 'gemini') activeKey = settings.geminiKey;
+    if (mode === 'google') activeKey = settings.googleKey;
+
+    if (!activeKey) {
+        return `※設定からAPIキーを入力するか、Freeモードを選択してください (Mode: ${mode})`;
     }
 
     // Google Gemini
@@ -260,7 +275,7 @@ async function translateText(text) {
             const target = settings.targetLang;
             const prompt = `Translate this text into natural ${target}. Return ONLY the translation, no checks, no markdown, no notes.\n\nText: ${text}`;
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${settings.apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`;
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -298,7 +313,7 @@ async function translateText(text) {
                 'Vietnamese': 'vi', 'Thai': 'th', 'Indonesian': 'id'
             };
             const target = map[settings.targetLang] || 'ja';
-            const url = `https://translation.googleapis.com/language/translate/v2?key=${settings.apiKey}`;
+            const url = `https://translation.googleapis.com/language/translate/v2?key=${activeKey}`;
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -334,7 +349,7 @@ async function translateText(text) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${settings.apiKey}`
+                    'Authorization': `Bearer ${activeKey}`
                 },
                 body: JSON.stringify({
                     model: "deepseek-chat",
@@ -378,6 +393,7 @@ micBtn.addEventListener('click', () => {
         // User wants to start
         // Always creating new instance to be safe
         recognition = initSpeechRecognition();
+        if (!recognition) return; // If init failed, don't proceed
 
         isRecordingActive = true;
         updateMicUI(true); // Immediate feedback
@@ -441,13 +457,19 @@ settingsBtn.addEventListener('click', () => {
 });
 
 saveSettingsBtn.addEventListener('click', (e) => {
+    // Save all API keys
+    settings.deepseekKey = deepseekKeyInput.value.trim();
+    settings.geminiKey = geminiKeyInput.value.trim();
+    settings.googleKey = googleKeyInput.value.trim();
+
     // Save standard settings
-    settings.apiKey = apiKeyInput.value.trim();
     settings.mode = translationModeSelect.value;
     settings.sourceLang = sourceLangSelect.value;
     settings.targetLang = targetLangSelect.value;
 
-    localStorage.setItem('yitalk_apikey', settings.apiKey);
+    localStorage.setItem('yitalk_apikey_deepseek', settings.deepseekKey);
+    localStorage.setItem('yitalk_apikey_gemini', settings.geminiKey);
+    localStorage.setItem('yitalk_apikey_google', settings.googleKey);
     localStorage.setItem('yitalk_mode', settings.mode);
     localStorage.setItem('yitalk_source', settings.sourceLang);
     localStorage.setItem('yitalk_target', settings.targetLang);
@@ -459,6 +481,8 @@ saveSettingsBtn.addEventListener('click', (e) => {
         isRecordingActive = false;
         updateMicUI(false);
         alert("設定を保存しました。マイクボタンを押して再開してください。\nSettings saved. Please press Start.");
+    } else {
+        settingsDialog.close();
     }
 });
 
