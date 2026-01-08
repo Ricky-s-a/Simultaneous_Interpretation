@@ -168,14 +168,59 @@ main {
     position: fixed;
     bottom: 0;
     width: 100%;
-    height: 90px;
-    background: linear-gradient(to top, var(--bg-color) 80%, transparent);
+    height: 140px;
+    /* Increased height for two rows */
+    background: linear-gradient(to top, var(--bg-color) 90%, transparent);
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    justify-content: flex-end;
     align-items: center;
+    padding-bottom: 20px;
     z-index: 100;
     pointer-events: none;
-    /* Let clicks pass through transparent top part if any */
+    gap: 12px;
+}
+
+.controls-top {
+    pointer-events: auto;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.model-pill {
+    appearance: none;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 6px 24px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+}
+
+.model-pill:hover,
+.model-pill:focus {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.controls-main {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 600px;
+    padding: 0 16px;
+    justify-content: center;
 }
 
 .mic-btn {
@@ -183,29 +228,58 @@ main {
     background: var(--card-bg);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
-    height: 64px;
-    border-radius: 32px;
-    /* Pill shape */
-    padding: 0 1.5rem;
+    border-radius: 16px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    /* Center content */
     gap: 0.75rem;
     cursor: pointer;
     font-family: var(--font-ui);
-    font-weight: 600;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex: 1;
+    /* Split width equally */
+    height: 64px;
+    position: relative;
+    overflow: hidden;
+}
+
+.mic-btn.split-btn {
+    flex-direction: row;
+    padding: 0 16px;
 }
 
 .mic-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     width: 40px;
     height: 40px;
     border-radius: 50%;
     transition: all 0.3s;
+    flex-shrink: 0;
+}
+
+.btn-labels {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    overflow: hidden;
+}
+
+.lang-label {
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.status-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
 .mic-btn:hover {
@@ -214,9 +288,13 @@ main {
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
 }
 
+.mic-btn:active {
+    transform: translateY(0);
+}
+
 .mic-btn.listening {
-    border-color: rgba(99, 102, 241, 0.5);
-    background: rgba(15, 17, 21, 0.9);
+    border-color: var(--accent-color);
+    background: rgba(60, 65, 80, 0.8);
 }
 
 .mic-btn.listening .mic-icon {
@@ -226,8 +304,8 @@ main {
     animation: pulse 1.5s infinite;
 }
 
-.mic-btn.listening .mic-status {
-    color: var(--error-color);
+.mic-btn.listening .status-label {
+    color: var(--accent-color);
 }
 
 @keyframes pulse {
