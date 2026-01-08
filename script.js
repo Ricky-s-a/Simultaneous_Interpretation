@@ -182,6 +182,11 @@ function updateWelcomeMessage() {
 
 initUI();
 
+// Buffering State
+let messageBuffer = "";
+let commitTimer = null;
+const COMMIT_DELAY = 1200; // Wait 1.2s for more speech before translating
+
 // Speech Recognition Engine
 function startRecognition(side) {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -193,9 +198,6 @@ function startRecognition(side) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
 
-    // Determine Language
-    // If side is 'source', usage settings.sourceLang (code)
-    // If side is 'target', convert settings.targetLang (name) to code
     let langCode = '';
     if (side === 'source') {
         langCode = settings.sourceLang;
@@ -213,6 +215,7 @@ function startRecognition(side) {
         isRecording = true;
         currentRecordingSide = side;
         updateMicUI(side, true);
+        messageBuffer = ""; // Reset buffer
     };
 
     recognition.onend = () => {
@@ -224,6 +227,11 @@ function startRecognition(side) {
                 // Ignore
             }
         } else {
+            // Force commit any remaining buffer
+            if (messageBuffer.trim()) {
+                handleTranscript(messageBuffer, true, side);
+                messageBuffer = "";
+            }
             updateMicUI(side, false);
             currentRecordingSide = null;
         }
@@ -239,32 +247,62 @@ function startRecognition(side) {
     };
 
     recognition.onresult = (event) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
+        let finalChunk = '';
+        let interimChunk = '';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
-                finalTranscript += event.results[i][0].transcript;
+                finalChunk += event.results[i][0].transcript;
             } else {
-                interimTranscript += event.results[i][0].transcript;
+                interimChunk += event.results[i][0].transcript;
             }
         }
 
-        if (finalTranscript) {
-            if (finalTranscript === lastFinalTranscript) return;
-            lastFinalTranscript = finalTranscript;
-            if (currentInterimCard) {
-                currentInterimCard.remove();
-                currentInterimCard = null;
-            }
-            // Commit
-            handleTranscript(finalTranscript, true, side);
-        } else if (interimTranscript) {
-            // Update
-            if (!currentInterimCard) {
-                currentInterimCard = createCard(interimTranscript, false, side);
+        // Handle Final Chunk (Buffer it)
+        if (finalChunk) {
+            // Avoid duplicate echoes
+            if (finalChunk === lastFinalTranscript) return;
+            lastFinalTranscript = finalChunk;
+
+            // Add to buffer
+            if (messageBuffer) {
+                // Add separator based on language? (Space for EN, none for ZH/JA usually but safety space is fine)
+                messageBuffer += " " + finalChunk;
             } else {
-                updateCard(currentInterimCard, interimTranscript, side);
+                messageBuffer = finalChunk;
+            }
+
+            // Update UI with buffered text (visual only, not yet translated)
+            if (!currentInterimCard) {
+                currentInterimCard = createCard(messageBuffer, false, side);
+            } else {
+                updateCard(currentInterimCard, messageBuffer, side); // Show full buffer
+            }
+
+            // Reset Timer
+            if (commitTimer) clearTimeout(commitTimer);
+
+            // If buffer is very long, force commit to prevent visible lag
+            if (messageBuffer.length > 150) {
+                commitBuffer(side);
+            } else {
+                // Wait for more speech
+                commitTimer = setTimeout(() => {
+                    commitBuffer(side);
+                }, COMMIT_DELAY);
+            }
+        }
+        // Handle Interim (Show visually appended to buffer)
+        else if (interimChunk) {
+            const fullVisual = messageBuffer ? (messageBuffer + " " + interimChunk) : interimChunk;
+
+            if (commitTimer) clearTimeout(commitTimer); // Pause commit while talking
+            // Restart commit timer if they pause during interim? No, interim means they are talking.
+
+            if (!currentInterimCard) {
+                currentInterimCard = createCard(fullVisual, false, side);
+            } else {
+                updateCard(currentInterimCard, fullVisual, side);
             }
         }
     };
@@ -276,7 +314,30 @@ function startRecognition(side) {
     }
 }
 
+function commitBuffer(side) {
+    if (commitTimer) clearTimeout(commitTimer);
+    commitTimer = null;
+
+    if (!messageBuffer.trim()) return;
+
+    // Finalize
+    if (currentInterimCard) {
+        currentInterimCard.remove();
+        currentInterimCard = null;
+    }
+
+    const textToTranslate = messageBuffer.trim();
+    messageBuffer = ""; // Clear
+
+    handleTranscript(textToTranslate, true, side);
+}
+
 function stopRecognition() {
+    // Force commit if anything is pending
+    if (messageBuffer.trim() && currentRecordingSide) {
+        commitBuffer(currentRecordingSide);
+    }
+
     isRecording = false;
     if (recognition) {
         recognition.abort();
@@ -285,6 +346,9 @@ function stopRecognition() {
     updateMicUI('source', false);
     updateMicUI('target', false);
     currentRecordingSide = null;
+
+    if (commitTimer) clearTimeout(commitTimer);
+    messageBuffer = "";
 }
 
 // UI Updates
